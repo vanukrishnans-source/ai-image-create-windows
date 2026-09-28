@@ -54,8 +54,8 @@ jobs:
           python -m pip install -U pip wheel
           pip install -r requirements-win.txt
           pip install --no-deps mediapipe==1.0.1
-          # build-time only (lets PyInstaller's collect_all import mediapipe); excluded from the bundle, the app stubs it
-          pip install matplotlib
+          # build-time only (lets PyInstaller's collect_all import mediapipe); excluded from the bundle, the app stubs both
+          pip install matplotlib opencv-python-headless
           python -c "import mediapipe, onnxruntime, PySide6, regex; print(mediapipe.__version__, onnxruntime.__version__, onnxruntime.get_available_providers(), PySide6.__version__)"
 
       - name: Cache model release files (models-v1)
