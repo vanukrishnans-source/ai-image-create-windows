@@ -1,0 +1,241 @@
+# Build AI Image Create (Windows x64 portable zip), test the PACKAGED exe on windows-latest, publish a GitHub Release.
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Create / update the GitHub Release with the zip"
+        type: boolean
+        default: false
+      parity:
+        description: "Run the Python reference pipeline and compare"
+        type: boolean
+        default: true
+      samples:
+        description: "Render the sample sheet (5 pictures)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.13"
+  GLOG_minloglevel: "2"
+  PYTHONUTF8: "1"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-win.txt
+
+      - name: Runner info
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors | Format-List
+          Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, AdapterRAM | Format-List
+          [System.Environment]::OSVersion.VersionString
+          Get-PSDrive C, D -ErrorAction SilentlyContinue | Format-Table Name, Used, Free
+
+      - name: Install Python deps
+        shell: pwsh
+        run: |
+          python -m pip install -U pip wheel
+          pip install -r requirements-win.txt
+          pip install --no-deps mediapipe==1.0.1
+          # build-time only (lets PyInstaller's collect_all import mediapipe); excluded from the bundle, the app stubs it
+          pip install matplotlib
+          python -c "import mediapipe, onnxruntime, PySide6, regex; print(mediapipe.__version__, onnxruntime.__version__, onnxruntime.get_available_providers(), PySide6.__version__)"
+
+      - name: Cache model release files (models-v1)
+        uses: actions/cache@v4
+        with:
+          path: .release-cache
+          key: aic-models-v1-${{ hashFiles('aic/models.py') }}
+
+      - name: Fetch model release files (same URLs + SHA-256 as the app)
+        shell: pwsh
+        run: python scripts/prefetch_release.py .release-cache
+
+      - name: PyInstaller (onedir, GUI exe + console exe)
+        shell: pwsh
+        run: |
+          pyinstaller AIImageCreate.spec --noconfirm
+          "{0:N1} MB" -f ((Get-ChildItem dist/AIImageCreate -Recurse | Measure-Object Length -Sum).Sum / 1MB)
+          if (Test-Path dist/AIImageCreate/_internal/cv2) { throw "OpenCV must not be bundled" }
+
+      - name: Install models with the packaged exe (import folder -> unpack)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path selftest-out | Out-Null
+          & dist\AIImageCreate\AIImageCreate_cli.exe --download --import "$PWD\.release-cache" --models "$PWD\.models"
+          if ($LASTEXITCODE -ne 0) { throw "model install failed" }
+          Get-ChildItem .models | Format-Table Name, Length
+
+      - name: Selftest - packaged AIImageCreate_cli.exe, CPU, private-person photo, NSFW check, DirectML smoke
+        shell: pwsh
+        run: |
+          $out = "$PWD\selftest-out\cli"
+          & dist\AIImageCreate\AIImageCreate_cli.exe --selftest --photo testdata\couple_e5.jpg --prompt "watercolor painting" `
+            --models "$PWD\.models" --out $out --dml-smoke
+          $code = $LASTEXITCODE
+          Get-Content "$out\selftest_report.json"
+          if ($code -ne 0) { throw "selftest failed: $code" }
+
+      - name: Selftest - packaged windowed AIImageCreate.exe
+        shell: pwsh
+        run: |
+          $out = "$PWD\selftest-out\gui_exe"
+          $p = Start-Process -FilePath dist\AIImageCreate\AIImageCreate.exe -PassThru -Wait -ArgumentList @(
+            "--selftest", "--photo", "`"$PWD\testdata\couple_dhaka.jpg`"", "--prompt", "`"oil painting`"",
+            "--models", "`"$PWD\.models`"", "--out", "`"$out`"")
+          Write-Host "exit code $($p.ExitCode)"
+          Get-Content "$out\selftest_report.json"
+          if ($p.ExitCode -ne 0) { throw "windowed selftest failed" }
+
+      - name: GPU half-precision UNet derivation (SHA-256 checked) + DirectML probes
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          & dist\AIImageCreate\AIImageCreate_cli.exe --derive-fp16 --models "$PWD\.models"
+          if ($LASTEXITCODE -ne 0) { throw "fp16 derivation failed" }
+          & dist\AIImageCreate\AIImageCreate_cli.exe --bench --device auto --models "$PWD\.models" --bench-iters 2 --out selftest-out\bench_auto.json
+          & dist\AIImageCreate\AIImageCreate_cli.exe --bench --device cpu --models "$PWD\.models" --bench-iters 2 --out selftest-out\bench_cpu.json
+
+      - name: GUI launch smoke (real window on the runner desktop)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path screens-ci | Out-Null
+          Remove-Item "$env:LOCALAPPDATA\AIImageCreate\gui_smoke.json" -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath dist\AIImageCreate\AIImageCreate.exe -PassThru -ArgumentList @(
+            "--models", "`"$PWD\.models`"", "--photo", "`"$PWD\testdata\couple_e5.jpg`"", "--prompt", "`"make it a beach at sunset`"",
+            "--gui-smoke", "75")
+          Start-Sleep -Seconds 50
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD\screens-ci\desktop_gui_launch.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          $alive = -not $p.HasExited
+          $p.WaitForExit(90000) | Out-Null
+          $smoke = Get-Content "$env:LOCALAPPDATA\AIImageCreate\gui_smoke.json" -ErrorAction SilentlyContinue
+          Write-Host "alive after 50 s: $alive; exit: $($p.ExitCode); smoke: $smoke; screen $($b.Width)x$($b.Height)"
+          "alive=$alive exit=$($p.ExitCode) screen=$($b.Width)x$($b.Height) smoke=$smoke" | Out-File selftest-out\gui_launch.txt
+          if (-not $alive -or -not $smoke) { throw "GUI smoke failed" }
+
+      - name: UI screenshots with the packaged exe (offscreen Qt, 150 %)
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $p = Start-Process -FilePath dist\AIImageCreate\AIImageCreate_cli.exe -PassThru -Wait -NoNewWindow -ArgumentList @(
+            "--screenshots", "`"$PWD\screens-ci`"", "--photo", "`"$PWD\testdata\couple_e5.jpg`"", "--prompt", "`"watercolor painting`"",
+            "--models", "`"$PWD\.models`"", "--device", "cpu")
+          Get-ChildItem screens-ci | Format-Table Name, Length
+          if ($p.ExitCode -ne 0) { throw "screenshots failed: $($p.ExitCode)" }
+
+      - name: Sample sheet (packaged exe, CPU, prompt only, default settings)
+        if: github.event_name != 'workflow_dispatch' || inputs.samples
+        shell: pwsh
+        run: |
+          & dist\AIImageCreate\AIImageCreate_cli.exe --samples testdata\couple_e5.jpg "$PWD\samples-ci\windows_samples.png" `
+            --models "$PWD\.models" --device cpu --seed 1234
+          if ($LASTEXITCODE -ne 0) { throw "samples failed" }
+          Get-ChildItem samples-ci | Format-Table Name, Length
+
+      - name: Parity - packaged exe (CPU) vs unmodified Python reference (separate venv)
+        if: github.event_name != 'workflow_dispatch' || inputs.parity
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path parity | Out-Null
+          & dist\AIImageCreate\AIImageCreate_cli.exe --parity-cases testdata parity\app --models "$PWD\.models"
+          if ($LASTEXITCODE -ne 0) { throw "app parity run failed" }
+          python -m venv refvenv
+          refvenv\Scripts\python -m pip install -q onnxruntime==1.22.1 numpy==2.5.3 pillow==12.3.0 regex==2026.9.10 absl-py flatbuffers certifi matplotlib
+          refvenv\Scripts\python -m pip install -q --no-deps mediapipe==1.0.1
+          refvenv\Scripts\python -m pip install -q opencv-python-headless
+          refvenv\Scripts\python scripts\ref_cases.py "$PWD\.models" testdata parity\ref aic\resources\face_landmarker.task
+          if ($LASTEXITCODE -ne 0) { throw "reference run failed" }
+          refvenv\Scripts\python scripts\compare_parity.py parity\app parity\ref parity\parity_windows.json | Tee-Object parity\parity_windows.txt
+          if ($LASTEXITCODE -ne 0) { throw "parity mismatch" }
+
+      - name: Make portable zip
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File packaging/make_zip.ps1
+          Get-ChildItem dist\*.zip | Format-Table Name, Length
+          Get-Content dist\SHA256SUMS
+
+      - name: Upload build + test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIImageCreate-win64-tests
+          path: |
+            selftest-out/**
+            screens-ci/**
+            samples-ci/**
+            parity/*.txt
+            parity/*.json
+            parity/app/*.json
+            parity/ref/*.json
+            dist/SHA256SUMS
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIImageCreate-win64-zip
+          path: dist/AIImageCreate-*-win64.zip
+          compression-level: 0
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $zip = Get-ChildItem dist\AIImageCreate-*-win64.zip | Select-Object -First 1
+          $ver = $zip.Name -replace '^AIImageCreate-(.+)-win64\.zip$', '$1'
+          $tag = if ("${{ github.ref }}".StartsWith("refs/tags/")) { "${{ github.ref_name }}" } else { "v$ver" }
+          $sha = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower()
+          $r = Get-Content selftest-out\cli\selftest_report.json -Raw | ConvertFrom-Json
+          $par = if (Test-Path parity\parity_windows.txt) { (Get-Content parity\parity_windows.txt | Select-String 'PARITY').ToString() } else { "not run" }
+          $lines = @(
+            "Portable build for Windows 10/11 x64 - made for the ASUS ROG Ally X (Radeon 780M, DirectML), works on any PC with automatic CPU fallback.",
+            "",
+            "| Asset | Size | SHA-256 |",
+            "|---|---|---|",
+            "| $($zip.Name) | $($zip.Length) bytes | $sha |",
+            "",
+            "### First run",
+            "1. Unzip, open the AIImageCreate folder, run **AIImageCreate.exe**.",
+            "2. **SmartScreen** (the app isn't code-signed): click **More info**, then **Run anyway**.",
+            "3. Tap **Download** for the one-time AI model download (1.45 GB from the ai-image-create-models release, about 4.8 GB on disk; +1.7 GB GPU fast path on DirectML PCs).",
+            "",
+            "Details, speed estimates and licences: https://github.com/${{ github.repository }}#readme",
+            "",
+            "### CI (windows-latest, packaged exe)",
+            "- Selftest (CPU, private-person photo, NSFW check ran: $($r.nsfw_filter.ran), score $([math]::Round($r.nsfw_filter.score,4))): ok=$($r.ok), $($r.seconds_generate) s",
+            "- Parity vs Python reference: $par",
+            "- DirectML smoke: $($r.dml_smoke.status)"
+          )
+          $lines -join "`n" | Out-File -Encoding utf8 notes.md
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $zip.FullName dist\SHA256SUMS --title "AI Image Create for Windows $tag" --notes-file notes.md
+          } else {
+            gh release upload $tag $zip.FullName dist\SHA256SUMS --clobber
+            gh release edit $tag --notes-file notes.md
+          }

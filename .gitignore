@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+build/
+dist/
+face/
+fp16/
+screens_local/
+/work/
+*.log

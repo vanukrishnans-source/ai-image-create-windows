@@ -1,0 +1,11 @@
+# Windows x64 build (Python 3.13). mediapipe is installed with --no-deps (see the workflow): OpenCV, matplotlib and
+# sounddevice are only used by mediapipe helpers the app never calls (stubbed in aic/__init__.py).
+numpy==2.5.3
+pillow==12.3.0
+regex==2026.9.10
+onnxruntime-directml==1.24.4
+PySide6-Essentials==6.11.2
+absl-py==2.5.0
+flatbuffers==25.12.19
+certifi
+pyinstaller==6.22.3

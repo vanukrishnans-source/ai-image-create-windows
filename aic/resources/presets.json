@@ -1,0 +1,113 @@
+{
+ "none": {
+  "label": "None (my prompt only)",
+  "prompt": "{}, highly detailed, sharp focus",
+  "strength": 0.5,
+  "w": 8.0,
+  "adapter": 0.75,
+  "keep_luma": 0.5,
+  "keep_chroma": 1.0,
+  "prompt_empty": "highly detailed, sharp focus",
+  "cfg": 1.8,
+  "face_delta": 0.25
+ },
+ "watercolor": {
+  "label": "Watercolor",
+  "prompt": "watercolor painting of {}, soft transparent washes, smooth clean skin, gentle gradients, visible paper texture, fine ink outlines, artistic, highly detailed",
+  "strength": 0.55,
+  "w": 8.0,
+  "adapter": 0.75,
+  "keep_luma": 0.5,
+  "keep_chroma": 0.6,
+  "prompt_empty": "watercolor painting, soft transparent washes, smooth clean skin, gentle gradients, visible paper texture, fine ink outlines, artistic, highly detailed",
+  "cfg": 1.8,
+  "face_delta": 0.3,
+  "negative_extra": "spots, blotches, stains, splatter, freckles, acne"
+ },
+ "anime": {
+  "label": "Anime",
+  "prompt": "anime style illustration of {}, cel shading, clean lineart, vibrant colors, detailed anime eyes, anime key visual",
+  "strength": 0.55,
+  "w": 8.0,
+  "adapter": 0.75,
+  "keep_luma": 0.5,
+  "keep_chroma": 1.0,
+  "prompt_empty": "anime style illustration, cel shading, clean lineart, vibrant colors, detailed anime eyes, anime key visual",
+  "cfg": 1.8,
+  "face_delta": 0.2
+ },
+ "oil": {
+  "label": "Oil painting",
+  "prompt": "oil painting of {}, thick impasto brush strokes, canvas texture, rich colors, classical masterpiece",
+  "strength": 0.5,
+  "w": 8.0,
+  "adapter": 0.75,
+  "keep_luma": 0.5,
+  "keep_chroma": 1.0,
+  "prompt_empty": "oil painting, thick impasto brush strokes, canvas texture, rich colors, classical masterpiece",
+  "cfg": 1.8,
+  "face_delta": 0.25
+ },
+ "cartoon3d": {
+  "label": "3D cartoon",
+  "prompt": "3d cartoon character render of {}, pixar style, big expressive eyes, soft studio lighting, smooth shading, cute",
+  "strength": 0.55,
+  "w": 8.0,
+  "adapter": 0.75,
+  "keep_luma": 0.5,
+  "keep_chroma": 1.0,
+  "prompt_empty": "3d cartoon character render, pixar style, big expressive eyes, soft studio lighting, smooth shading, cute",
+  "cfg": 1.8,
+  "face_delta": 0.2
+ },
+ "sketch": {
+  "label": "Pencil sketch",
+  "prompt": "pencil sketch of {}, graphite drawing, detailed cross-hatching, dark confident lines, monochrome, black and white, on white paper",
+  "strength": 0.6,
+  "w": 8.0,
+  "adapter": 0.9,
+  "keep_luma": 0.0,
+  "keep_chroma": 0.0,
+  "prompt_empty": "pencil sketch, graphite drawing, detailed cross-hatching, dark confident lines, monochrome, black and white, on white paper",
+  "cfg": 1.8,
+  "init": "sketch",
+  "negative_extra": "color, colorful, photo",
+  "face_delta": 0.3,
+  "init_amount": 0.75
+ },
+ "cyberpunk": {
+  "label": "Cyberpunk neon",
+  "prompt": "cyberpunk {}, neon lights, glowing magenta and cyan, futuristic, night, highly detailed",
+  "strength": 0.55,
+  "w": 8.0,
+  "adapter": 0.7,
+  "keep_luma": 0.0,
+  "keep_chroma": 0.0,
+  "prompt_empty": "cyberpunk neon lights, glowing magenta and cyan, futuristic, night, highly detailed",
+  "cfg": 1.8,
+  "face_delta": 0.2
+ },
+ "scene": {
+  "label": "Scene change",
+  "prompt": "{}, photo, highly detailed, sharp focus",
+  "strength": 0.55,
+  "w": 8.0,
+  "adapter": 0.6,
+  "keep_luma": 0.0,
+  "keep_chroma": 0.0,
+  "prompt_empty": "photo, highly detailed, sharp focus",
+  "cfg": 1.8,
+  "face_delta": 0.35
+ },
+ "_defaults": {
+  "steps": 4,
+  "cfg": 1.8,
+  "negative": "blurry, lowres, low quality, jpeg artifacts, deformed, disfigured, ugly, bad anatomy, extra fingers, watermark, text, signature",
+  "long_side": 512,
+  "encoder": "taesd_encoder",
+  "decoder": "vae_decoder",
+  "nsfw_threshold": 0.85,
+  "face_min": 0.2,
+  "nsfw_negative": "nude, naked, nsfw, nipples, genitals, sexual"
+ }
+}

@@ -1,0 +1,8 @@
+[
+ {"key": "e5_watercolor", "photo": "couple_e5.jpg", "prompt": "watercolor painting", "strength": 0.55, "quality": "best",
+  "seed": 1234, "keep_face": true, "keep_colors": true, "upscale": true, "size": "standard"},
+ {"key": "dhaka_beach_fast", "photo": "couple_dhaka.jpg", "prompt": "make it a beach at sunset", "strength": 0.55,
+  "quality": "fast", "seed": 42, "keep_face": false, "keep_colors": false, "upscale": false, "size": "standard"},
+ {"key": "e5_oil_large", "photo": "couple_e5.jpg", "prompt": "oil painting", "strength": 0.6, "quality": "best",
+  "seed": 7, "keep_face": true, "keep_colors": true, "upscale": false, "size": "large"}
+]
