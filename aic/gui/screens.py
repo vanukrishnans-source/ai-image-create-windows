@@ -23,6 +23,9 @@ from .app import PAGE_MAIN, PAGE_PROGRESS, PAGE_SETUP, MainWindow, make_app
 
 def take_screenshots(args) -> int:
     os.environ.setdefault("QT_SCALE_FACTOR", "1.5")
+    if os.name == "nt" and os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+        # the offscreen platform uses Qt's FreeType font database, which only finds fonts via QT_QPA_FONTDIR
+        os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))
     out = Path(args.screenshots); out.mkdir(parents=True, exist_ok=True)
     app = make_app(["AIImageCreate"])
     tmpq = Path(tempfile.mkdtemp(prefix="aic_qs_"))

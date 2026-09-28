@@ -35,7 +35,7 @@ class GenParams:
     keep_colors: bool = True
     upscale: bool = True
     strictness: str = "relaxed"   # "relaxed" (block if > 0.85, default) | "standard" (block if > 0.5)
-    size: str = "standard"        # "standard" (area <= 512^2, e.g. 576x384) | "large" (area <= 768^2, e.g. 896x576)
+    size: str = "standard"        # "standard" (512-576 px, e.g. 576x384) | "large" (768 px long side, e.g. 768x512)
     preset: str = "none"          # the Windows UI always uses "none" (prompt only); other presets kept for parity tests
 
 

@@ -266,7 +266,7 @@ def bench(args) -> int:
     store = _store(args); _install(store, args.import_dir)
     e = Engine(store, args.device, gpu_half=not args.no_half)
     rep = {"versions": versions(), "device": args.device}
-    for size, (W, H) in (("standard", (576, 384)), ("large", (896, 576))):
+    for size, (W, H) in (("standard", (576, 384)), ("large", (768, 512))):
         h, w = H // 8, W // 8
         feed = {"sample": np.random.randn(1, 4, h, w).astype(np.float32), "timestep": np.array([500], np.int64),
                 "encoder_hidden_states": np.random.randn(1, 77, 768).astype(np.float32),

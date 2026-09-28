@@ -10,6 +10,15 @@ Turn a photo into a new picture from a text prompt **alone**. Everything runs on
 | **Models** | [ai-image-create-models / models-v1](https://github.com/vanukrishnans-source/ai-image-create-models/releases/tag/models-v1) (1.45 GB, downloaded once by the app) |
 | **Android twin** | Same pipeline as the phone app (LCM-Dreamshaper-v7 4-step img2img + T2I-Adapter canny + face likeness + colour keeping + Real-ESRGAN 2× + NSFW filter) |
 
+## Screenshots
+
+| Main (photo + prompt) | Options | Result (before/after) |
+|---|---|---|
+| ![main](https://raw.githubusercontent.com/vanukrishnans-source/ai-image-create-windows/main/docs/screens/04_main_photo_prompt.png) | ![options](https://raw.githubusercontent.com/vanukrishnans-source/ai-image-create-windows/main/docs/screens/05_options.png) | ![result](https://raw.githubusercontent.com/vanukrishnans-source/ai-image-create-windows/main/docs/screens/07_result_before_after.png) |
+
+Sample results made by the packaged Windows build (CPU, prompt only, default settings):
+![samples](https://raw.githubusercontent.com/vanukrishnans-source/ai-image-create-windows/main/docs/windows_samples.jpg)
+
 ## Install (first run)
 
 1. Download `AIImageCreate-1.0.0-win64.zip` from the latest release and unzip it somewhere with a few GB free (e.g. `C:\Apps\`).
@@ -35,7 +44,7 @@ Everything else lives under the collapsed **Options** panel:
 | Option | Default |
 |---|---|
 | Quality Best / Fast | **Best** (8 AI steps; Fast = 5) |
-| Output size Standard / Large | **Standard** (512 px long side, e.g. 576×384). Large = 768 px (~2.3× slower; faces may drift more). Aspect is always preserved — never stretched. |
+| Output size Standard / Large | **Standard** ≈ 512² (e.g. 576×384 → 1152×768 with 2×). Large ≈ 768² (e.g. 768×512 → 1536×1024): finer detail, ~2.5× slower, faces may drift more. Aspect is always preserved — never stretched. |
 | Sharpen + enlarge 2× | **on** |
 | Keep face likeness | **on** |
 | Keep the photo’s colours | **on** |
@@ -53,16 +62,39 @@ Everything else lives under the collapsed **Options** panel:
 
 ## Hardware notes (ROG Ally X)
 
-| Path | Est. time per picture (576×384, Best, 2× on, warm) |
-|---|---|
-| **Radeon 780M · DirectML · fp16 UNet** | **~8–14 s** *(estimate — see below)* |
-| Radeon 780M · DirectML · fp32 UNet | ~15–25 s *(estimate)* |
-| Ally X CPU (Ryzen Z1 Extreme) | ~12–20 s *(estimate)* |
-| This CI runner (4 vCPU, CPU only) | ~20–35 s *(measured)* |
+Time per picture (Standard size, Best, keep face + colours, 2× on, app already warm):
 
-**How the 780M estimates were made.** The Windows hosted runner has no usable GPU (Microsoft Hyper-V Video; DirectML is present but not used). Locally on an 8-vCPU Xeon the UNet costs ~1.5 s per eval at 576×384. Published RX 6600 DirectML SD1.5 numbers are ~0.22 s/eval (with CFG); the 780M is roughly 0.5× that throughput, and a Framework 7840U (same 780M) saw ~6× GPU vs CPU in ComfyUI. Combining those gives **~0.3 s/eval fp16** and **~0.65 s/eval fp32** on the 780M, and **~0.6–1.0 s/eval** on the Z1 Extreme CPU — labelled **estimates**, not Ally X measurements. Prefer Standard size + Best + 2× for quality; use Large only when you want more detail and can wait.
+| Path | Time per picture | UNet per step |
+|---|---|---|
+| **Radeon 780M · DirectML · fp16 UNet** (default on the Ally X) | **~5–9 s** *(estimate)* | ~0.3 s *(estimate)* |
+| Radeon 780M · DirectML · fp32 UNet (fallback) | ~9–15 s *(estimate)* | ~0.65 s *(estimate)* |
+| Ally X CPU only (Ryzen Z1 Extreme, 8C/16T) | ~15–25 s *(estimate)* | ~0.9–1.5 s *(estimate)* |
+| 8-vCPU Xeon dev box, CPU | 20 s *(measured)* | 1.5 s *(measured)* |
+| GitHub windows-latest runner (4 vCPU EPYC, no GPU), CPU | 75 s *(measured)* | 5.2 s *(measured)* |
 
-The app badge shows **GPU · DirectML · fp16** / **GPU · DirectML** / **CPU (GPU unavailable)** so you always know which path is active. If half precision ever produces NaN/Inf on a particular driver, the app falls back to fp32 permanently for that install (toggle it back on in Options).
+- Large size costs about 2.5× more. Fast quality cuts about a third off.
+- The first picture after starting the app also loads the models (roughly 10–40 s; the first DirectML run compiles GPU shaders).
+
+**How the 780M numbers were estimated.** The hosted Windows runner has no usable GPU: DirectML is installed but only the “Microsoft Hyper-V Video” adapter exists, so ONNX Runtime used the CPU. The estimates combine:
+- published SD 1.5 DirectML speeds for the RX 6600 (~0.22 s per UNet step);
+- the 780M being roughly half of that GPU;
+- a Framework 7840U (same 780M) getting ~6× GPU-over-CPU in ComfyUI;
+- the CPU times measured above.
+
+They are **estimates**, not Ally X measurements.
+
+The badge in the top bar always shows which path is active: **GPU · DirectML · fp16**, **GPU · DirectML**, or **CPU (GPU unavailable)**.
+- If a DirectML session or run fails, that model falls back to CPU automatically.
+- If half precision ever produces NaN/Inf on a driver, the app switches to the fp32 UNet for good. You can turn it back on in Options.
+
+### Why no extra model download for the GPU
+
+DirectML runs the int8/fp32 UNet slowly, so GPU PCs get a **half-precision (fp16) UNet**. It is made on your PC instead of downloaded:
+- The fp16 graph (0.6 MB) ships inside the app.
+- Its 1.7 GB of weights are made locally by casting the already-downloaded fp32 UNet weights, tensor by tensor, using the same rules as ONNX Runtime’s float16 converter.
+- The result is checked against a SHA-256 recorded when the graph was built. This takes ~15 s.
+
+So the models repo needed no new release tag, and the download stays 1.45 GB.
 
 ## What’s inside the zip
 

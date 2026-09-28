@@ -466,8 +466,8 @@ class MainWindow(QMainWindow):
         self.o_quality = Segmented([("Best", "best"), ("Fast", "fast")])
         row(0, "Quality", self.o_quality, "Best: 8 AI steps. Fast: 5 steps, ~35% quicker.")
         self.o_size = Segmented([("Standard", "standard"), ("Large", "large")])
-        row(0, "Output size", self.o_size, "Standard: 512 px long side (576×384 before 2×). Large: 768 px — more detail, "
-                                           "~2.3× slower, faces may drift more. Never stretched.")
+        row(0, "Output size", self.o_size, "Standard ≈ 512² (e.g. 576×384, 1152×768 with 2×). Large ≈ 768² (e.g. 768×512, "
+                                           "1536×1024 with 2×) — more detail, ~2.5× slower, faces may drift more. Never stretched.")
         self.o_upscale = QCheckBox("Sharpen + enlarge 2×"); cols[0].addWidget(self.o_upscale)
         self.o_face = QCheckBox("Keep face likeness"); cols[0].addWidget(self.o_face)
         self.o_colors = QCheckBox("Keep the photo's colours"); cols[0].addWidget(self.o_colors)
@@ -553,7 +553,7 @@ class MainWindow(QMainWindow):
     def _estimate(self, p: GenParams):
         if not self.sec_per_eval: return None
         evals = 8 if p.quality == "best" else 5
-        f = 2.3 if p.size == "large" else 1.0
+        f = 2.5 if p.size == "large" else 1.0
         return self.sec_per_eval * f * (evals + 3.6 + (0.7 if p.upscale else 0))
 
     # photo input
@@ -631,7 +631,7 @@ class MainWindow(QMainWindow):
         self.prog_bar.setValue(0); self.prog_stage.setText("Getting ready…"); self.prog_eta.setText(""); self.btn_cancel.setEnabled(True)
         self.go(PAGE_PROGRESS)
         if self.warm is None: self._start_warmup()
-        hint = self.sec_per_eval * (2.3 if p.size == "large" else 1.0) if self.sec_per_eval else None
+        hint = self.sec_per_eval * (2.5 if p.size == "large" else 1.0) if self.sec_per_eval else None
 
         def work(cancel, emit):
             while not self.ready.wait(0.2):
@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
     def _finished(self, r: GenResult):
         self._set_chip()
         spe = r.timings.get("sec_per_unet_eval")
-        if spe: self.sec_per_eval = spe / (2.3 if (self.last_params and self.last_params.size == "large") else 1.0)
+        if spe: self.sec_per_eval = spe / (2.5 if (self.last_params and self.last_params.size == "large") else 1.0)
         if r.blocked:
             self.result = None; self.saved_path = None       # nothing is kept, shown or saved
             self.blk_info.setText(f"Safety filter: {STRICT.get(self.last_params.strictness if self.last_params else 'relaxed')} · seed {r.seed}")

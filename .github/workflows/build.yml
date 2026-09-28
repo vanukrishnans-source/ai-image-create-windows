@@ -140,6 +140,7 @@ jobs:
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QPA_FONTDIR = "$env:WINDIR\Fonts"
           $p = Start-Process -FilePath dist\AIImageCreate\AIImageCreate_cli.exe -PassThru -Wait -NoNewWindow -ArgumentList @(
             "--screenshots", "`"$PWD\screens-ci`"", "--photo", "`"$PWD\testdata\couple_e5.jpg`"", "--prompt", "`"watercolor painting`"",
             "--models", "`"$PWD\.models`"", "--device", "cpu")
