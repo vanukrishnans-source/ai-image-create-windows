@@ -759,7 +759,9 @@ class MainWindow(QMainWindow):
 def make_app(argv=None):
     app = QApplication.instance() or QApplication(argv or sys.argv)
     app.setApplicationName("AI Image Create"); app.setOrganizationName("vanu")
-    app.setStyle("Fusion"); app.setStyleSheet(QSS)
+    from ..resources_path import res
+    check = res("check.png").as_posix()
+    app.setStyle("Fusion"); app.setStyleSheet(QSS + f'QCheckBox::indicator:checked {{ image: url("{check}"); }}\n')
     ico = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2] / "packaging")) / "icon.ico"
     if ico.is_file(): app.setWindowIcon(QIcon(str(ico)))
     return app

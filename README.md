@@ -70,7 +70,7 @@ Time per picture (Standard size, Best, keep face + colours, 2× on, app already 
 | Radeon 780M · DirectML · fp32 UNet (fallback) | ~9–15 s *(estimate)* | ~0.65 s *(estimate)* |
 | Ally X CPU only (Ryzen Z1 Extreme, 8C/16T) | ~15–25 s *(estimate)* | ~0.9–1.5 s *(estimate)* |
 | 8-vCPU Xeon dev box, CPU | 20 s *(measured)* | 1.5 s *(measured)* |
-| GitHub windows-latest runner (4 vCPU EPYC, no GPU), CPU | 75 s *(measured)* | 5.2 s *(measured)* |
+| GitHub windows-latest runner (4 vCPU AMD EPYC, no GPU), CPU | 35–75 s *(measured, varies by runner)* | 2.2–5.2 s *(measured)* |
 
 - Large size costs about 2.5× more. Fast quality cuts about a third off.
 - The first picture after starting the app also loads the models (roughly 10–40 s; the first DirectML run compiles GPU shaders).

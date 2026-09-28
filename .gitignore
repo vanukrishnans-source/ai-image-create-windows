@@ -7,3 +7,6 @@ fp16/
 screens_local/
 /work/
 *.log
+screens/
+samples/
+reports/
